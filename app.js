@@ -1,4 +1,4 @@
-setStatus("APP.JS v10 caricato ✅ Carica una foto.");
+// APP v11 — SOLO LINEE (no OpenCV)
 const $ = (id) => document.getElementById(id);
 
 const fileInput = $("file");
@@ -35,7 +35,7 @@ function syncLabels(){
 }));
 syncLabels();
 
-setStatus("APP.JS v10 caricato ✅ Carica una foto.");
+setStatus("APP.JS v11 caricato ✅ Carica una foto.");
 
 window.onerror = (msg, url, line) => {
   setStatus(`Errore JS: ${msg} (riga ${line || "?"})`);
@@ -48,7 +48,6 @@ fileInput.addEventListener("change", (e) => {
   setStatus("Carico immagine…");
   hasImage = false;
 
-  // ✅ Metodo più compatibile su iPad: Image() + objectURL
   const url = URL.createObjectURL(f);
   const img = new Image();
   img.onload = () => {
@@ -66,7 +65,6 @@ fileInput.addEventListener("change", (e) => {
     srcCtx.clearRect(0,0,w,h);
     srcCtx.drawImage(img, 0, 0, w, h);
 
-    // mostra SUBITO l'originale
     viewMode.disabled = false;
     viewMode.value = "original";
     btnGenerate.disabled = false;
@@ -74,7 +72,7 @@ fileInput.addEventListener("change", (e) => {
 
     hasImage = true;
     drawView();
-    setStatus("Immagine caricata ✅ Premi Genera.");
+    setStatus("Immagine caricata ✅ Premi Genera (solo linee).");
 
     URL.revokeObjectURL(url);
   };
@@ -87,12 +85,12 @@ fileInput.addEventListener("change", (e) => {
 
 btnGenerate.addEventListener("click", () => {
   if (!hasImage) return alert("Carica prima una foto.");
-  setStatus("Genero stencil…");
+  setStatus("Genero stencil linee…");
   setTimeout(() => {
-    generateStencilJS();
+    generateLineStencil();
     viewMode.value = "stencil";
     drawView();
-    setStatus("Stencil pronto ✅");
+    setStatus("Stencil a linee pronto ✅");
   }, 10);
 });
 
@@ -102,13 +100,14 @@ alpha.addEventListener("input", drawView);
 btnExportJpg.addEventListener("click", () => {
   if (!hasImage) return alert("Carica una foto.");
   const link = document.createElement("a");
-  link.download = "export.jpg";
+  link.download = "stencil-linee.jpg";
   link.href = outCanvas.toDataURL("image/jpeg", 0.95);
   link.click();
 });
 
 function drawView(){
   if (!hasImage) return;
+
   outCtx.setTransform(1,0,0,1,0,0);
   outCtx.clearRect(0,0,outCanvas.width,outCanvas.height);
 
@@ -125,30 +124,103 @@ function drawView(){
   }
 }
 
-// --- Stencil veloce: threshold semplice (per test) ---
-// Appena confermi che funziona TUTTO, lo trasformiamo in "linee vere" (Sobel) + tratteggio.
-function generateStencilJS(){
+// ---- SOLO LINEE: grayscale -> (optional blur) -> Sobel -> threshold -> draw ----
+function generateLineStencil(){
   const w = srcCanvas.width, h = srcCanvas.height;
   const src = srcCtx.getImageData(0,0,w,h);
   const data = src.data;
 
+  // grayscale
+  let g = new Uint8ClampedArray(w*h);
+  for (let i=0, p=0; i<data.length; i+=4, p++){
+    g[p] = (data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114) | 0;
+  }
+
+  // blur (box blur separabile) — slider blur: 0,3,5,7,9
+  const k = parseInt(blur.value, 10);
+  const radius = k === 0 ? 0 : Math.min(4, Math.floor(k/2));
+  if (radius) g = boxBlurGray(g, w, h, radius);
+
+  // sobel threshold
+  const thr = parseInt(edge.value, 10); // 20..200
+  const edges = new Uint8ClampedArray(w*h);
+  sobelEdges(g, w, h, thr, edges);
+
+  // render: white background + black edges
   const out = stencilCtx.createImageData(w,h);
   const d = out.data;
-
-  const thr = parseInt(edge.value,10); // usiamo lo slider come soglia per adesso
-
-  for (let i=0; i<data.length; i+=4){
-    const g = (data[i]*0.299 + data[i+1]*0.587 + data[i+2]*0.114) | 0;
-    const v = (g > thr) ? 255 : 0;
-    d[i] = v; d[i+1] = v; d[i+2] = v; d[i+3] = 255;
+  for (let p=0, i=0; p<edges.length; p++, i+=4){
+    const isEdge = edges[p] === 1;
+    d[i]   = isEdge ? 0 : 255;
+    d[i+1] = isEdge ? 0 : 255;
+    d[i+2] = isEdge ? 0 : 255;
+    d[i+3] = 255;
   }
-
-  // invert: sfondo bianco, segni neri
-  for (let i=0; i<d.length; i+=4){
-    d[i] = 255 - d[i];
-    d[i+1] = 255 - d[i+1];
-    d[i+2] = 255 - d[i+2];
-  }
-
   stencilCtx.putImageData(out, 0, 0);
+}
+
+function sobelEdges(g, w, h, thr, out){
+  // thr è “sensibilità”: più basso = più linee, più alto = meno linee
+  // scala: mag approx (|gx|+|gy|) può arrivare alto, quindi normalizziamo col *6
+  const T = thr * 6;
+
+  // azzera bordi
+  out.fill(0);
+
+  for (let y=1; y<h-1; y++){
+    const yw = y*w;
+    for (let x=1; x<w-1; x++){
+      const p = yw + x;
+
+      const a = g[p-w-1], b=g[p-w], c=g[p-w+1];
+      const d = g[p-1],           f=g[p+1];
+      const g1= g[p+w-1], h1=g[p+w], i1=g[p+w+1];
+
+      const gx = (-a + c) + (-2*d + 2*f) + (-g1 + i1);
+      const gy = ( a + 2*b + c) + (-g1 - 2*h1 - i1);
+
+      const mag = Math.abs(gx) + Math.abs(gy);
+      out[p] = (mag > T) ? 1 : 0;
+    }
+  }
+}
+
+function boxBlurGray(g, w, h, r){
+  const tmp = new Uint8ClampedArray(w*h);
+  const out = new Uint8ClampedArray(w*h);
+  const size = r*2 + 1;
+
+  // horizontal
+  for (let y=0; y<h; y++){
+    let sum = 0;
+    const row = y*w;
+    for (let x=-r; x<=r; x++){
+      const xx = Math.min(w-1, Math.max(0, x));
+      sum += g[row+xx];
+    }
+    for (let x=0; x<w; x++){
+      tmp[row+x] = (sum / size) | 0;
+      const xRemove = x - r;
+      const xAdd = x + r + 1;
+      if (xRemove >= 0) sum -= g[row+xRemove];
+      if (xAdd < w) sum += g[row+xAdd];
+    }
+  }
+
+  // vertical
+  for (let x=0; x<w; x++){
+    let sum = 0;
+    for (let y=-r; y<=r; y++){
+      const yy = Math.min(h-1, Math.max(0, y));
+      sum += tmp[yy*w + x];
+    }
+    for (let y=0; y<h; y++){
+      out[y*w + x] = (sum / size) | 0;
+      const yRemove = y - r;
+      const yAdd = y + r + 1;
+      if (yRemove >= 0) sum -= tmp[yRemove*w + x];
+      if (yAdd < h) sum += tmp[yAdd*w + x];
+    }
+  }
+  return out;
 }
