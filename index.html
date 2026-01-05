@@ -1,70 +1,52 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Stencil Maker</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Stencil Tattoo Tool</title>
+  <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-  <header class="top">
-    <h1>Stencil Maker</h1>
-    <p>Foto → contorni + tratteggi. Tutto in locale (non carica online).</p>
-  </header>
+<header class="top">
+  <h1>Stencil Tattoo Tool</h1>
+  <p>Linee + tratteggi · confronto visivo · export JPEG</p>
+</header>
 
-  <section class="bar">
-    <input id="file" type="file" accept="image/*" />
-    <button id="btnProcess" disabled>Genera</button>
-    <button id="btnExport" disabled>Esporta PNG</button>
-    <span id="status">Carica una foto…</span>
-  </section>
+<section class="toolbar">
+  <input type="file" id="file" accept="image/*">
+  <button id="exportJpg">Salva JPEG</button>
 
-  <section class="controls">
-    <div class="ctl">
-      <label>Quantità linee (Edge): <b id="vEdge">80</b></label>
-      <input id="edge" type="range" min="10" max="200" value="80">
-    </div>
+  <select id="viewMode">
+    <option value="stencil">Solo stencil</option>
+    <option value="original">Solo originale</option>
+    <option value="overlay">Sovrapposto</option>
+  </select>
+</section>
 
-    <div class="ctl">
-      <label>Pulizia (Blur): <b id="vBlur">3</b></label>
-      <input id="blur" type="range" min="0" max="9" step="2" value="3">
-    </div>
+<section class="sliders">
+  <label>Linee
+    <input type="range" id="edge" min="20" max="200" value="90">
+  </label>
 
-    <div class="ctl">
-      <label>Spessore linee: <b id="vThick">1</b></label>
-      <input id="thick" type="range" min="1" max="4" value="1">
-    </div>
+  <label>Pulizia
+    <input type="range" id="blur" min="0" max="9" step="2" value="3">
+  </label>
 
-    <div class="ctl">
-      <label>Tratteggi ombre (intensità): <b id="vShade">55</b></label>
-      <input id="shade" type="range" min="0" max="100" value="55">
-    </div>
+  <label>Tratteggi
+    <input type="range" id="shade" min="0" max="100" value="50">
+  </label>
 
-    <div class="ctl">
-      <label>Densità tratteggi: <b id="vHatch">10</b></label>
-      <input id="hatch" type="range" min="4" max="24" value="10">
-    </div>
+  <label>Trasparenza overlay
+    <input type="range" id="alpha" min="0" max="100" value="50">
+  </label>
+</section>
 
-    <div class="ctl">
-      <label>Nero (opacità linee): <b id="vInk">100</b></label>
-      <input id="ink" type="range" min="20" max="100" value="100">
-    </div>
-  </section>
+<section class="canvasWrap">
+  <canvas id="canvas"></canvas>
+</section>
 
-  <section class="grid">
-    <div class="pane">
-      <h2>Originale</h2>
-      <canvas id="src"></canvas>
-    </div>
-
-    <div class="pane">
-      <h2>Stencil</h2>
-      <canvas id="out"></canvas>
-    </div>
-  </section>
-
-  <!-- OpenCV.js -->
-  <script async src="https://docs.opencv.org/4.x/opencv.js"></script>
-  <script src="app.js"></script>
+<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
