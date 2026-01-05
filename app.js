@@ -1,4 +1,4 @@
-// APP v10 (NO OpenCV) — iPad safe
+setStatus("APP.JS v10 caricato ✅ Carica una foto.");
 const $ = (id) => document.getElementById(id);
 
 const fileInput = $("file");
