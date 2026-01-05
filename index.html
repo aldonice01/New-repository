@@ -1,76 +1,280 @@
 <!doctype html>
 <html lang="it">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Stencil Tattoo Tool</title>
-  <link rel="stylesheet" href="style.css">
+  <style>
+    :root{
+      --bg:#0b0f14;
+      --panel:#0f1620;
+      --panel2:#0c121a;
+      --text:#e9eef6;
+      --muted:#b6c2d3;
+      --stroke:rgba(255,255,255,.12);
+      --accent:#62a8ff;
+      --btn:#1a2a3d;
+      --btn2:#132032;
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(1200px 900px at 20% 0%, #131c28 0%, var(--bg) 55%) fixed;
+      color:var(--text);
+    }
+    header{
+      padding:22px 18px 8px;
+      max-width:1100px;
+      margin:0 auto;
+    }
+    h1{
+      margin:0 0 6px;
+      font-size:32px;
+      letter-spacing:.2px;
+    }
+    .sub{
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.4;
+    }
+    .wrap{
+      max-width:1100px;
+      margin:0 auto;
+      padding:14px 18px 28px;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: 360px 1fr;
+      gap:16px;
+      align-items:start;
+    }
+    @media (max-width: 980px){
+      .grid{grid-template-columns:1fr}
+    }
+
+    .panel{
+      background: linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
+      border:1px solid var(--stroke);
+      border-radius: var(--radius);
+      padding:14px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+
+    .toolbar{
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      align-items:center;
+      margin-bottom:12px;
+    }
+    .toolbar > *{flex:0 0 auto}
+    .toolbar .spacer{flex:1 1 auto}
+
+    .btn{
+      appearance:none;
+      border:1px solid var(--stroke);
+      background: linear-gradient(180deg, var(--btn) 0%, var(--btn2) 100%);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      font-weight:600;
+      font-size:14px;
+      cursor:pointer;
+    }
+    .btn:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+    }
+    .select, .file{
+      border:1px solid var(--stroke);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      font-size:14px;
+      outline:none;
+    }
+    .file{padding:9px 10px}
+    .select{cursor:pointer}
+
+    .status{
+      margin-top:10px;
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px dashed rgba(255,255,255,.18);
+      color:var(--muted);
+      font-size:13px;
+      min-height:40px;
+      display:flex;
+      align-items:center;
+    }
+
+    .controls{
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      margin-top:12px;
+    }
+
+    .ctl{
+      border:1px solid var(--stroke);
+      border-radius:12px;
+      padding:10px 10px 8px;
+      background: rgba(255,255,255,.04);
+    }
+    .ctl label{
+      display:flex;
+      justify-content:space-between;
+      align-items:baseline;
+      gap:10px;
+      font-size:13px;
+      color:var(--muted);
+      margin-bottom:8px;
+    }
+    .ctl b{
+      color:var(--text);
+      font-size:13px;
+      font-variant-numeric: tabular-nums;
+    }
+    input[type="range"]{
+      width:100%;
+      accent-color: var(--accent);
+    }
+
+    .viewer{
+      padding:14px;
+    }
+    .canvasWrap{
+      background: rgba(0,0,0,.35);
+      border:1px solid var(--stroke);
+      border-radius: var(--radius);
+      overflow:hidden;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+    }
+    canvas{
+      display:block;
+      width:100%;
+      height:auto;
+      background:#fff;
+    }
+    .hint{
+      margin-top:10px;
+      color:var(--muted);
+      font-size:13px;
+      line-height:1.35;
+    }
+    .pill{
+      display:inline-block;
+      padding:2px 8px;
+      border-radius:999px;
+      background: rgba(98,168,255,.15);
+      border:1px solid rgba(98,168,255,.35);
+      color: #cfe4ff;
+      font-size:12px;
+      margin-right:6px;
+    }
+  </style>
 </head>
+
 <body>
+  <header>
+    <h1>Stencil Tattoo Tool</h1>
+    <div class="sub">Linee pulite + tratteggi • confronto • export JPEG • pensato per iPad (GitHub Pages)</div>
+  </header>
 
-<header class="top">
-  <h1>Stencil Tattoo Tool</h1>
-  <p>Linee + tratteggi · confronto · export JPEG</p>
-</header>
+  <div class="wrap">
+    <div class="grid">
+      <!-- LEFT: CONTROLS -->
+      <section class="panel">
+        <div class="toolbar">
+          <input class="file" id="file" type="file" accept="image/*" />
+          <select class="select" id="mode" title="Modalità stencil">
+            <option value="lines">Solo linee</option>
+            <option value="hatch">Linee + tratteggi</option>
+          </select>
 
-<section class="toolbar">
-  <input type="file" id="file" accept="image/*">
-  <button id="btnGenerate" disabled>Genera</button>
-  <button id="btnExportJpg" disabled>Salva JPEG</button>
+          <button class="btn" id="btnGenerate" disabled>Genera</button>
+          <button class="btn" id="btnExportJpg" disabled>Salva JPEG</button>
 
-  <select id="mode">
-  <option value="lines">Solo linee</option>
-  <option value="hatch">Linee + tratteggi</option>
-</select>
+          <div class="spacer"></div>
 
-  <span id="status">Carica una foto…</span>
-</section>
+          <select class="select" id="viewMode" disabled title="Vista">
+            <option value="original">Originale</option>
+            <option value="stencil">Stencil</option>
+            <option value="overlay">Overlay</option>
+          </select>
+        </div>
 
-<section class="sliders">
-  <div class="ctl">
-    <label>Quantità linee (Edge) <b id="vEdge">90</b></label>
-    <input type="range" id="edge" min="20" max="200" value="90">
+        <div class="controls">
+          <div class="ctl">
+            <label>Quantità linee (Edge) <b id="vEdge">120</b></label>
+            <input type="range" id="edge" min="20" max="200" value="120">
+          </div>
+
+          <div class="ctl">
+            <label>Pulizia (Blur) <b id="vBlur">3</b></label>
+            <input type="range" id="blur" min="0" max="9" step="2" value="3">
+          </div>
+
+          <div class="ctl">
+            <label>Pulizia rumore <b id="vClean">2</b></label>
+            <input type="range" id="clean" min="0" max="4" value="2">
+          </div>
+
+          <div class="ctl">
+            <label>Spessore linee <b id="vThick">2</b></label>
+            <input type="range" id="thick" min="1" max="3" value="2">
+          </div>
+
+          <div class="ctl">
+            <label>Tratteggi (intensità) <b id="vShade">25</b></label>
+            <input type="range" id="shade" min="0" max="100" value="25">
+          </div>
+
+          <div class="ctl">
+            <label>Densità tratteggi <b id="vHatch">12</b></label>
+            <input type="range" id="hatch" min="4" max="24" value="12">
+          </div>
+
+          <div class="ctl">
+            <label>Trasparenza overlay <b id="vAlpha">35</b></label>
+            <input type="range" id="alpha" min="0" max="100" value="35">
+          </div>
+        </div>
+
+        <div class="status" id="status">Carica una foto.</div>
+
+        <div class="hint">
+          <span class="pill">Consigli rapidi</span><br>
+          • Se vuoi più linee: abbassa <b>Edge</b> (es. 70–110)<br>
+          • Se vuoi più pulito: alza <b>Edge</b> (es. 130–170) + <b>Blur</b> 3 + <b>Pulizia rumore</b> 2–3<br>
+          • Linee più “stencil”: <b>Spessore</b> 2<br>
+          • Tratteggi leggeri: <b>Intensità</b> 15–35, <b>Densità</b> 10–16
+        </div>
+      </section>
+
+      <!-- RIGHT: VIEWER -->
+      <section class="panel viewer">
+        <div class="canvasWrap">
+          <canvas id="canvas"></canvas>
+        </div>
+        <!-- canvas sorgente nascosto -->
+        <canvas id="src" style="display:none"></canvas>
+
+        <div class="hint">
+          Vista: <b>Overlay</b> per confrontare originale + stencil (usa “Trasparenza overlay”).<br>
+          Per salvare lo stencil: metti <b>Stencil</b> e premi <b>Salva JPEG</b>.
+        </div>
+      </section>
+    </div>
   </div>
 
-  <div class="ctl">
-    <label>Pulizia (Blur) <b id="vBlur">3</b></label>
-    <input type="range" id="blur" min="0" max="9" step="2" value="3">
-  </div>
-
-  <div class="ctl">
-    <label>Tratteggi (intensità) <b id="vShade">50</b></label>
-    <input type="range" id="shade" min="0" max="100" value="50">
-  </div>
-
-  <div class="ctl">
-    <label>Densità tratteggi <b id="vHatch">10</b></label>
-    <input type="range" id="hatch" min="4" max="24" value="10">
-  </div>
-
-  <div class="ctl">
-  <label>Pulizia rumore <b id="vClean">2</b></label>
-  <input type="range" id="clean" min="0" max="4" value="2">
-</div>
-
-<div class="ctl">
-  <label>Spessore linee <b id="vThick">2</b></label>
-  <input type="range" id="thick" min="1" max="3" value="2">
-</div>
-
-  <div class="ctl">
-    <label>Trasparenza overlay <b id="vAlpha">50</b></label>
-    <input type="range" id="alpha" min="0" max="100" value="50">
-  </div>
-</section>
-
-<section class="canvasWrap">
-  <!-- canvas sorgente (nascosto) -->
-  <canvas id="src" class="hidden"></canvas>
-  <!-- canvas finale -->
-  <canvas id="canvas"></canvas>
-</section>
-
-<script>
-  document.getElementById("status").textContent = "INDEX v13 caricato ✅";
-</script>
-<script src="app.js?v=13"></script>
+  <script>
+    // Firma e cache-bust
+    document.getElementById("status").textContent = "INDEX v13 caricato ✅";
+  </script>
+  <script src="app.js?v=13"></script>
+</body>
+</html>
