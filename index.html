@@ -6,43 +6,58 @@
   <title>Stencil Tattoo Tool</title>
   <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+
 <header class="top">
   <h1>Stencil Tattoo Tool</h1>
-  <p>Linee + tratteggi · confronto visivo · export JPEG</p>
+  <p>Linee + tratteggi · confronto · export JPEG</p>
 </header>
 
 <section class="toolbar">
   <input type="file" id="file" accept="image/*">
-  <button id="exportJpg">Salva JPEG</button>
+  <button id="btnGenerate" disabled>Genera</button>
+  <button id="btnExportJpg" disabled>Salva JPEG</button>
 
-  <select id="viewMode">
+  <select id="viewMode" disabled>
     <option value="stencil">Solo stencil</option>
     <option value="original">Solo originale</option>
     <option value="overlay">Sovrapposto</option>
   </select>
+
+  <span id="status">Carica una foto…</span>
 </section>
 
 <section class="sliders">
-  <label>Linee
+  <div class="ctl">
+    <label>Quantità linee (Edge) <b id="vEdge">90</b></label>
     <input type="range" id="edge" min="20" max="200" value="90">
-  </label>
+  </div>
 
-  <label>Pulizia
+  <div class="ctl">
+    <label>Pulizia (Blur) <b id="vBlur">3</b></label>
     <input type="range" id="blur" min="0" max="9" step="2" value="3">
-  </label>
+  </div>
 
-  <label>Tratteggi
+  <div class="ctl">
+    <label>Tratteggi (intensità) <b id="vShade">50</b></label>
     <input type="range" id="shade" min="0" max="100" value="50">
-  </label>
+  </div>
 
-  <label>Trasparenza overlay
+  <div class="ctl">
+    <label>Densità tratteggi <b id="vHatch">10</b></label>
+    <input type="range" id="hatch" min="4" max="24" value="10">
+  </div>
+
+  <div class="ctl">
+    <label>Trasparenza overlay <b id="vAlpha">50</b></label>
     <input type="range" id="alpha" min="0" max="100" value="50">
-  </label>
+  </div>
 </section>
 
 <section class="canvasWrap">
+  <!-- canvas sorgente (nascosto) -->
+  <canvas id="src" class="hidden"></canvas>
+  <!-- canvas finale -->
   <canvas id="canvas"></canvas>
 </section>
 
