@@ -17,9 +17,16 @@ const outCtx = outCanvas.getContext("2d");
 let cvReady = false;
 let hasImage = false;
 
-// canvases interni
+// layer stencil
 const stencilCanvas = document.createElement("canvas");
 const hatchCanvas = document.createElement("canvas");
+
+// mostra errori JS nello status (su iPad è comodissimo)
+window.onerror = (msg, url, line, col) => {
+  statusEl.textContent = `Errore JS: ${msg} (riga ${line})`;
+};
+
+function setStatus(t){ statusEl.textContent = t; }
 
 function syncLabels(){
   vEdge.textContent = edge.value;
@@ -34,11 +41,12 @@ function syncLabels(){
 }));
 syncLabels();
 
+// Attendo OpenCV
 const wait = setInterval(() => {
   if (typeof cv !== "undefined" && cv.Mat) {
     clearInterval(wait);
     cvReady = true;
-    statusEl.textContent = "OpenCV pronto ✅";
+    setStatus("OpenCV pronto ✅ Carica una foto.");
     if (hasImage) btnGenerate.disabled = false;
   }
 }, 100);
@@ -47,41 +55,91 @@ fileInput.addEventListener("change", async (e) => {
   const f = e.target.files?.[0];
   if (!f) return;
 
-  statusEl.textContent = "Carico immagine…";
   hasImage = false;
+  btnGenerate.disabled = true;
+  btnExportJpg.disabled = true;
+  viewMode.disabled = true;
 
+  setStatus("Carico immagine…");
+
+  // ✅ dimensione aggressiva per velocità su iPad
+  const maxSide = 900;
+
+  // 1) tentativo: createImageBitmap
   try {
     const bmp = await createImageBitmap(f);
-
-    // ✅ più aggressivo per iPad: 900px max
-    const maxSide = 900;
-    let w = bmp.width, h = bmp.height;
-    const scale = Math.min(1, maxSide / Math.max(w, h));
-    w = Math.max(1, Math.round(w * scale));
-    h = Math.max(1, Math.round(h * scale));
-
-    srcCanvas.width = w; srcCanvas.height = h;
-    outCanvas.width = w; outCanvas.height = h;
-    stencilCanvas.width = w; stencilCanvas.height = h;
-    hatchCanvas.width = w; hatchCanvas.height = h;
-
-    srcCtx.setTransform(1,0,0,1,0,0);
-    srcCtx.clearRect(0,0,w,h);
-    srcCtx.drawImage(bmp, 0, 0, w, h);
-
-    // mostra originale subito
-    viewMode.disabled = false;
-    btnExportJpg.disabled = false;
-    viewMode.value = "original";
-    drawView();
-
-    hasImage = true;
-    btnGenerate.disabled = !cvReady;
-    statusEl.textContent = cvReady ? "Immagine ok ✅ Premi Genera." : "Immagine ok ✅ Attendo OpenCV…";
-  } catch (err) {
-    statusEl.textContent = "Errore immagine: " + err.message;
+    drawBitmapToCanvases(bmp, maxSide);
+    bmp.close?.();
+    onImageReady();
+    return;
+  } catch (err1) {
+    // 2) fallback: Image() + objectURL (super compatibile)
+    try {
+      const url = URL.createObjectURL(f);
+      const img = new Image();
+      img.onload = () => {
+        drawImageToCanvases(img, maxSide);
+        URL.revokeObjectURL(url);
+        onImageReady();
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        setStatus("Errore: non riesco a leggere questa immagine.");
+      };
+      img.src = url;
+      return;
+    } catch (err2) {
+      setStatus("Errore caricamento immagine: " + (err2?.message || err1?.message));
+      return;
+    }
   }
 });
+
+function drawBitmapToCanvases(bmp, maxSide){
+  let w = bmp.width, h = bmp.height;
+  const scale = Math.min(1, maxSide / Math.max(w, h));
+  w = Math.max(1, Math.round(w * scale));
+  h = Math.max(1, Math.round(h * scale));
+
+  srcCanvas.width = w; srcCanvas.height = h;
+  outCanvas.width = w; outCanvas.height = h;
+  stencilCanvas.width = w; stencilCanvas.height = h;
+  hatchCanvas.width = w; hatchCanvas.height = h;
+
+  srcCtx.setTransform(1,0,0,1,0,0);
+  srcCtx.clearRect(0,0,w,h);
+  srcCtx.drawImage(bmp, 0, 0, w, h);
+
+  viewMode.value = "original";
+  drawView();
+}
+
+function drawImageToCanvases(img, maxSide){
+  let w = img.naturalWidth, h = img.naturalHeight;
+  const scale = Math.min(1, maxSide / Math.max(w, h));
+  w = Math.max(1, Math.round(w * scale));
+  h = Math.max(1, Math.round(h * scale));
+
+  srcCanvas.width = w; srcCanvas.height = h;
+  outCanvas.width = w; outCanvas.height = h;
+  stencilCanvas.width = w; stencilCanvas.height = h;
+  hatchCanvas.width = w; hatchCanvas.height = h;
+
+  srcCtx.setTransform(1,0,0,1,0,0);
+  srcCtx.clearRect(0,0,w,h);
+  srcCtx.drawImage(img, 0, 0, w, h);
+
+  viewMode.value = "original";
+  drawView();
+}
+
+function onImageReady(){
+  hasImage = true;
+  btnExportJpg.disabled = false;
+  viewMode.disabled = false;
+  setStatus(cvReady ? "Immagine ok ✅ Premi Genera." : "Immagine ok ✅ Attendo OpenCV…");
+  btnGenerate.disabled = !cvReady;
+}
 
 btnGenerate.addEventListener("click", () => {
   if (!hasImage) return alert("Carica prima una foto.");
@@ -103,11 +161,10 @@ btnExportJpg.addEventListener("click", () => {
 });
 
 function generateStencilFast(){
-  statusEl.textContent = "Genero stencil…";
+  setStatus("Genero stencil…");
 
   const w = srcCanvas.width, h = srcCanvas.height;
 
-  // --- OpenCV pipeline (no loop JS sui pixel) ---
   const src = cv.imread(srcCanvas);
 
   const gray = new cv.Mat();
@@ -121,29 +178,27 @@ function generateStencilFast(){
   const t2 = Math.min(255, t1 * 2);
   cv.Canny(gray, edges, t1, t2);
 
-  // invert edges: edges bianchi -> linee nere su bianco
+  // invert: sfondo bianco, linee nere
   const inv = new cv.Mat();
-  cv.bitwise_not(edges, inv); // ora sfondo bianco, linee nere
+  cv.bitwise_not(edges, inv);
 
-  // Convert to RGBA per visualizzare
   const rgba = new cv.Mat();
   cv.cvtColor(inv, rgba, cv.COLOR_GRAY2RGBA);
 
-  // Disegno risultato linee su stencilCanvas
   stencilCanvas.width = w; stencilCanvas.height = h;
   cv.imshow(stencilCanvas, rgba);
 
-  // --- Tratteggio (canvas, ma su dimensione ridotta: veloce) ---
+  // tratteggio 1 direzione
   const intensity = parseInt(shade.value, 10) / 100;
   if (intensity > 0) {
     const spacing = parseInt(hatch.value, 10);
+    hatchCanvas.width = w; hatchCanvas.height = h;
     const hctx = hatchCanvas.getContext("2d");
     hctx.setTransform(1,0,0,1,0,0);
     hctx.clearRect(0,0,w,h);
-
-    // disegna tratteggio nero
     hctx.strokeStyle = "rgba(0,0,0,1)";
     hctx.lineWidth = 1;
+
     for (let y = -w; y < h + w; y += spacing) {
       hctx.beginPath();
       hctx.moveTo(0, y);
@@ -151,47 +206,43 @@ function generateStencilFast(){
       hctx.stroke();
     }
 
-    // maschera alpha leggendo gray data (è Uint8Array già in OpenCV)
     const hid = hctx.getImageData(0,0,w,h);
     const hd = hid.data;
-    const gdata = gray.data; // 0..255
+    const gdata = gray.data;
 
-    // ✅ qui un loop c'è, ma su 900px max è gestibile e veloce
     for (let i=0, p=0; i<hd.length; i+=4, p++){
       if (hd[i+3] === 0) continue;
       const dark = (255 - gdata[p]) / 255;
       const a = Math.max(0, (dark - 0.15) / 0.85);
-      hd[i] = 0; hd[i+1] = 0; hd[i+2] = 0;
-      hd[i+3] = Math.round(255 * a * intensity);
+      hd[i]=0; hd[i+1]=0; hd[i+2]=0;
+      hd[i+3]=Math.round(255 * a * intensity);
     }
     hctx.putImageData(hid,0,0);
 
-    // compositing: disegna hatch sopra stencil
     const sctx = stencilCanvas.getContext("2d");
     sctx.drawImage(hatchCanvas, 0, 0);
   }
 
-  // cleanup
   src.delete(); gray.delete(); edges.delete(); inv.delete(); rgba.delete();
-
-  statusEl.textContent = "Stencil pronto ✅";
+  setStatus("Stencil pronto ✅");
 }
 
 function drawView(){
   if (!hasImage) return;
 
   const mode = viewMode.value;
+
   outCtx.setTransform(1,0,0,1,0,0);
   outCtx.clearRect(0,0,outCanvas.width,outCanvas.height);
 
   if (mode === "original") {
-    outCtx.drawImage(srcCanvas,0,0);
+    outCtx.drawImage(srcCanvas, 0, 0);
   } else if (mode === "stencil") {
-    outCtx.drawImage(stencilCanvas,0,0);
+    outCtx.drawImage(stencilCanvas, 0, 0);
   } else {
-    outCtx.drawImage(srcCanvas,0,0);
+    outCtx.drawImage(srcCanvas, 0, 0);
     outCtx.globalAlpha = parseInt(alpha.value,10)/100;
-    outCtx.drawImage(stencilCanvas,0,0);
+    outCtx.drawImage(stencilCanvas, 0, 0);
     outCtx.globalAlpha = 1;
   }
 }
