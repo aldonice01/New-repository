@@ -1,4 +1,4 @@
-// APP v11 — SOLO LINEE (no OpenCV)
+setStatus("APP.JS v11 caricato ✅ Carica una foto.");
 const $ = (id) => document.getElementById(id);
 
 const fileInput = $("file");
