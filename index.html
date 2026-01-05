@@ -18,11 +18,10 @@
   <button id="btnGenerate" disabled>Genera</button>
   <button id="btnExportJpg" disabled>Salva JPEG</button>
 
-  <select id="viewMode" disabled>
-    <option value="stencil">Solo stencil</option>
-    <option value="original">Solo originale</option>
-    <option value="overlay">Sovrapposto</option>
-  </select>
+  <select id="mode">
+  <option value="lines">Solo linee</option>
+  <option value="hatch">Linee + tratteggi</option>
+</select>
 
   <span id="status">Carica una foto…</span>
 </section>
@@ -49,6 +48,16 @@
   </div>
 
   <div class="ctl">
+  <label>Pulizia rumore <b id="vClean">2</b></label>
+  <input type="range" id="clean" min="0" max="4" value="2">
+</div>
+
+<div class="ctl">
+  <label>Spessore linee <b id="vThick">2</b></label>
+  <input type="range" id="thick" min="1" max="3" value="2">
+</div>
+
+  <div class="ctl">
     <label>Trasparenza overlay <b id="vAlpha">50</b></label>
     <input type="range" id="alpha" min="0" max="100" value="50">
   </div>
@@ -61,5 +70,7 @@
   <canvas id="canvas"></canvas>
 </section>
 
-<script async src="https://docs.opencv.org/4.x/opencv.js"></script>
-<script src="app.js?v=20"></script>
+<script>
+  document.getElementById("status").textContent = "INDEX v13 caricato ✅";
+</script>
+<script src="app.js?v=13"></script>
