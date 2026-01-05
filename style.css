@@ -1,0 +1,10 @@
+body {
+  background: #111;
+  color: #fff;
+  font-family: -apple-system, system-ui;
+  padding: 20px;
+}
+canvas {
+  background: white;
+  max-width: 100%;
+}
